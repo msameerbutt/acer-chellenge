@@ -1,0 +1,136 @@
+version: '3.8'
+
+networks:
+  app-stack:
+    driver: bridge
+    name: ${DOCKER_REGISTRY}-stack
+
+volumes:
+  db-data:
+    name: ${DOCKER_REGISTRY}-mysql-data
+  cache-data:
+    name: ${DOCKER_REGISTRY}-redis-data
+
+services:
+
+  mysql:
+    image: mysql:8.0.28
+    container_name: ${DOCKER_REGISTRY}-mysql
+    command: --default-authentication-plugin=mysql_native_password
+    #restart: unless-stopped
+    tty: true
+    ports:
+      - 3306:3306
+    volumes:
+      - ${PWD}/backup.sql:/docker-entrypoint-initdb.d/portal.sql:cached
+      - ${PWD}/stack/config/${DOCKER_ENVIRONMENT}/mysql/my.cnf:/etc/mysql/conf.d/my.cnf:cached
+      - db-data:/var/lib/mysql:delegated
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    networks:
+      app-stack:
+        aliases:
+          - db.${DOCKER_ROOT_DOMAIN}
+
+  redis:
+    image: redis:6.2-alpine
+    container_name: ${DOCKER_REGISTRY}-redis
+    command: [ "redis-server", "/usr/local/etc/redis/redis.conf", "--appendonly", "yes" ]
+    ports:
+      - 6379:6379
+    networks:
+      app-stack:
+        aliases:
+          - redis.${DOCKER_ROOT_DOMAIN}
+    volumes:
+      - ${PWD}/stack/config/${DOCKER_ENVIRONMENT}/redis/redis.conf:/usr/local/etc/redis/redis.conf:cached
+      - cache-data:/data:delegated
+
+  php:
+    image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}/php:edge
+    container_name: ${DOCKER_REGISTRY}-php
+    build:
+      context: ${PWD}/stack
+      dockerfile: ${PWD}/stack/dependency.dockerfile
+      args:
+        DOCKER_REGISTRY: ${DOCKER_REGISTRY}
+        DOCKER_REPOSITORY: ${DOCKER_REPOSITORY}
+        PHP_ENVIRONMENT: ${DOCKER_ENVIRONMENT}
+        PHP_WORK_DIR: ${DOCKER_WORKING_DIR}
+        PHP_ENABLE_MCRYPT: "on"
+        PHP_ENABLE_APCU: "on"
+        PHP_ENABLE_EXIF: "on"
+        PHP_ENABLE_IMAGICK: "on"
+        PHP_ENABLE_LDAP: "on"
+        PHP_ENABLE_MYSQL: "on"
+        PHP_ENABLE_REDIS: "on"
+        PHP_ENABLE_AWSCLI: "on"
+        PHP_ENABLE_SUPERVISOR: "on"
+      target: app-php
+    expose:
+      - 9000
+    depends_on:
+      - node
+      - mysql
+      - redis
+    command: /bin/bash
+    tty: true      
+    networks:
+      app-stack:
+          aliases:
+            - php.${DOCKER_ROOT_DOMAIN}
+
+  nginx:
+    image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}/nginx:edge
+    container_name: ${DOCKER_REGISTRY}-nginx
+    build:
+      context: ${PWD}/stack
+      dockerfile: ${PWD}/stack/dependency.dockerfile
+      args:
+        DOCKER_REGISTRY: ${DOCKER_REGISTRY}
+        DOCKER_REPOSITORY: ${DOCKER_REPOSITORY}
+        NGINX_ENVIRONMENT: ${DOCKER_ENVIRONMENT}
+        NGINX_WORK_DIR: ${DOCKER_WORKING_DIR}
+      target: app-nginx
+    ports:
+      - 443:443
+    environment:
+      NGINX_SERVER_NAME: "app.${DOCKER_ROOT_DOMAIN}"
+      NGINX_ROOT: "${DOCKER_WORKING_DIR}"
+      NGINX_ACCESS_LOG: "/var/log/nginx/access.log"
+      NGINX_ERROR_LOG: "/var/log/nginx/error.log"
+      NGINX_SSL_CERTIFICATE: "/etc/nginx/ssl/dummy.crt"
+      NGINX_SSL_CERTIFICATE_KEY: "/etc/nginx/ssl/dummy.key"
+      FAST_CGI_PASS: "php.${DOCKER_ROOT_DOMAIN}"
+    volumes:
+      - ${PWD}/src/:${DOCKER_WORKING_DIR}:delegated
+      - ${PWD}/stack/config/${DOCKER_ENVIRONMENT}/certificate:/etc/nginx/ssl
+      - ${PWD}/stack/config/${DOCKER_ENVIRONMENT}/nginx/templates/app.conf.template:/etc/nginx/templates/app.conf.template
+    depends_on:
+      - php
+      - mysql
+    networks:
+      app-stack:
+          aliases:
+            - app.${DOCKER_ROOT_DOMAIN}
+
+  node:
+    image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}/node:edge
+    container_name: ${DOCKER_REGISTRY}-node
+    build:
+      context: ${PWD}/stack
+      dockerfile: ${PWD}/stack/dependency.dockerfile
+      args:
+        DOCKER_REGISTRY: ${DOCKER_REGISTRY}
+        DOCKER_REPOSITORY: ${DOCKER_REPOSITORY}
+        NODE_ENVIRONMENT: ${DOCKER_ENVIRONMENT}
+      target: app-frontend
+    tty: true
+    entrypoint: ['bash']
+    networks:
+      app-stack:
+          aliases:
+            - node.${DOCKER_ROOT_DOMAIN}

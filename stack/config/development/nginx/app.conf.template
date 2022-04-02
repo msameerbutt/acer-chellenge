@@ -1,0 +1,58 @@
+server {
+    # Listening on port
+    listen 443;
+    listen [::]:443;
+
+    # Server Name
+    server_name _;
+
+    # Site Root
+    root ${NGINX_ROOT};
+
+    index index.php index.html index.htm;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+        fastcgi_param HTTP_X_REQUEST_ID $request_id;
+        fastcgi_param SERVER_NAME $host;
+        fastcgi_param TRUE-CLIENT-IP $http_true_client_ip;
+        include fastcgi_params;
+        fastcgi_pass ${FAST_CGI_PASS}:9000;
+        fastcgi_index index.php;
+        fastcgi_read_timeout 600;
+        fastcgi_send_timeout 600;
+        client_body_buffer_size 10M;
+        client_max_body_size 25M;
+    }
+
+    # deny access to protected files
+    location /.env {
+        deny  all;
+    }
+
+    # Media: images, icons, video, audio, HTC
+    location ~* \.(?:jpg|jpeg|gif|png|ico|cur|gz|svg|svgz|mp4|ogg|ogv|webm|htc|eot|woff|woff2|txt)$ {
+        expires ${NGINX_CONTENT_EXPIRY};
+        access_log off;
+        log_not_found off;
+        add_header Cache-Control "public";
+    }
+
+    # CSS and Javascript add expiry headers
+    location ~* \.(?:css|js)$ {
+        expires ${NGINX_CONTENT_EXPIRY};
+        access_log off;
+        log_not_found off;
+        add_header Cache-Control "public";
+    }
+
+    # SSL Certificate
+    ssl_certificate ${NGINX_SSL_CERTIFICATE};
+    ssl_certificate_key ${NGINX_SSL_CERTIFICATE_KEY};
+}
