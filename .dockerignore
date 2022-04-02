@@ -1,0 +1,12 @@
+# ignore .git and .cache folders
+.gitignore
+.dockerignore
+.git
+.cache
+.env
+*.log
+*.md
+!README.md
+
+Dockerfile
+node_modules
