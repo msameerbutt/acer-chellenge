@@ -1,0 +1,29 @@
+version: '3.8'
+
+networks:
+  app-stack:
+    driver: bridge
+    name: ${DOCKER_REGISTRY}-stack
+
+services:
+
+  app:
+    image: ${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}/app:edge
+    container_name: ${DOCKER_REGISTRY}-app
+    build:
+      context: ${PWD}/src
+      dockerfile: ${PWD}/stack/app.code.dockerfile
+      args:
+        DOCKER_REGISTRY: ${DOCKER_REGISTRY}
+        DOCKER_REPOSITORY: ${DOCKER_REPOSITORY}
+        APP_ENVIRONMENT: ${DOCKER_ENVIRONMENT}
+        APP_WORK_DIR: ${DOCKER_WORKING_DIR}
+      target: app-code
+    volumes:
+      - ${PWD}/src/:${DOCKER_WORKING_DIR}:delegated
+    command: [ "/bin/sh" ]
+    tty: true      
+    networks:
+      app-stack:
+          aliases:
+            - php.${DOCKER_ROOT_DOMAIN}

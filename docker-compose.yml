@@ -68,7 +68,7 @@ services:
         PHP_ENABLE_REDIS: "on"
         PHP_ENABLE_AWSCLI: "on"
         PHP_ENABLE_SUPERVISOR: "on"
-      target: app-php
+      target: app-php-devs
     expose:
       - 9000
     volumes:
@@ -141,9 +141,23 @@ services:
         DOCKER_REPOSITORY: ${DOCKER_REPOSITORY}
         NODE_ENVIRONMENT: ${DOCKER_ENVIRONMENT}
       target: app-frontend
+    volumes:
+      - ${PWD}/src/:${DOCKER_WORKING_DIR}:delegated
+    working_dir: ${DOCKER_WORKING_DIR}
     tty: true
     entrypoint: ['bash']
     networks:
       app-stack:
           aliases:
             - node.${DOCKER_ROOT_DOMAIN}
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: ${DOCKER_REGISTRY}-mailhog
+    ports:
+      - 1025:1025
+      - 8025:8025
+    networks:
+      app-stack:
+        aliases:
+          - mailhog.${DOCKER_ROOT_DOMAIN}

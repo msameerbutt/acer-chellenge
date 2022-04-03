@@ -10,6 +10,7 @@ LABEL Version=1.0
 # --------- Setup build default options
 ARG NODE_CACHE_BUSTER=1
 ARG NODE_ENVIRONMENT=production
+ARG NODE_APP_DIR=/usr/local/www/src
 
 #
 # PHP Image
