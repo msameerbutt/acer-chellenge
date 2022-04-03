@@ -1,0 +1,82 @@
+[PHP]
+; Decides whether PHP may expose the fact that it is installed on the server
+; (e.g. by adding its signature to the Web server header).  It is no security
+; threat in any way, but it makes it possible to determine whether you use PHP
+; on your server or not.
+; https://php.net/expose-php
+expose_php = Off
+
+; Maximum amount of memory a script may consume
+; https://php.net/memory-limit
+memory_limit=512M
+
+; This directive determines whether or not PHP will recognize code between
+; <? and ?> tags as PHP source which should be processed as such. It is
+; generally recommended that <?php and ?> should be used and that this feature
+; should be disabled, as enabling it may result in issues when generating XML
+; documents, however this remains supported for backward compatibility reasons.
+; Note that this directive does not control the <?= shorthand tag, which can be
+; used regardless of this directive.
+; Default Value: On
+; Development Value: Off
+; Production Value: Off
+; https://php.net/short-open-tag
+short_open_tag = Off
+
+[Date]
+; Defines the default timezone used by the date functions
+; https://php.net/date.timezone
+date.timezone = UTC
+
+[opcache]
+; Determines if Zend OPCache is enabled
+opcache.enable=1
+
+; Determines if Zend OPCache is enabled for the CLI version of PHP
+opcache.enable_cli=0
+
+;Upload restrictions
+upload_max_filesize=2000M
+
+max_input_vars=250
+
+;Post max size
+post_max_size=2000M
+
+;Max execution time
+max_execution_time=90
+
+;Timezone
+date.timezone=Australia/Melbourne
+
+; display_errors
+display_errors = 0
+
+; error_reporting
+error_reporting = E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT & ~E_WARNING
+
+; display_startup_errors
+display_startup_errors = 0
+
+; log errors
+log_errors = On
+
+; error logs
+error_log = /var/log/php/php_error.log
+
+; RPM note : session directory must be owned by process owner
+; for mod_php, see /etc/httpd/conf.d/php.conf
+; for php-fpm, see /etc/php-fpm.d/*conf
+;session.save_path = "/tmp"
+session.save_path=${PHP_SESSION_SAVE_PATH}
+
+[Session]
+; Handler used to store/retrieve data.
+; http://php.net/session.save-handler
+; session.save_handler = files
+session.save_handler=${PHP_SESSION_SAVE_HANDLER}
+
+[mail function]
+; For Unix only.  You may supply arguments as well (default: "sendmail -t -i").
+; http://php.net/sendmail-path
+sendmail_path = ${PHP_SEND_MAIL_PATH}

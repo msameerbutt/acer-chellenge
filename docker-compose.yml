@@ -17,8 +17,7 @@ services:
     image: mysql:8.0.28
     container_name: ${DOCKER_REGISTRY}-mysql
     command: --default-authentication-plugin=mysql_native_password
-    #restart: unless-stopped
-    tty: true
+    restart: unless-stopped
     ports:
       - 3306:3306
     volumes:
@@ -72,11 +71,21 @@ services:
       target: app-php
     expose:
       - 9000
+    volumes:
+      - ${PWD}/src/:${DOCKER_WORKING_DIR}:delegated
+      - ${PWD}/stack/config/${DOCKER_ENVIRONMENT}/php/www.conf:/usr/local/etc/php-fpm.d/www.conf
+      - ${PWD}/stack/config/${DOCKER_ENVIRONMENT}/php/custom.ini.template:/usr/local/etc/php/conf.d/custom.ini.template
+      - ${PWD}/stack/config/${DOCKER_ENVIRONMENT}/php/entrypoint.sh:/usr/local/bin/custom-entrypoint.sh:cached
     depends_on:
       - node
       - mysql
       - redis
-    command: /bin/bash
+    entrypoint: ["/usr/local/bin/custom-entrypoint.sh"]
+    command: [ "php-fpm" ]
+    environment:
+      PHP_SESSION_SAVE_HANDLER: "files"
+      PHP_SESSION_SAVE_PATH: "/tmp"
+      PHP_SEND_MAIL_PATH: "'/usr/local/bin/mhsendmail --smtp-addr=mailhog:1025'"
     tty: true      
     networks:
       app-stack:
@@ -96,19 +105,23 @@ services:
         NGINX_WORK_DIR: ${DOCKER_WORKING_DIR}
       target: app-nginx
     ports:
-      - 443:443
+      - ${APP_PORT}:80
+      - ${APP_PORT_SSL}:443
     environment:
-      NGINX_SERVER_NAME: "app.${DOCKER_ROOT_DOMAIN}"
-      NGINX_ROOT: "${DOCKER_WORKING_DIR}"
-      NGINX_ACCESS_LOG: "/var/log/nginx/access.log"
-      NGINX_ERROR_LOG: "/var/log/nginx/error.log"
+      #NGINX_SERVER_NAME: "app.${DOCKER_ROOT_DOMAIN}"
+      NGINX_SERVER_NAME: "_"
+      NGINX_SITE_ROOT: "${DOCKER_WORKING_DIR}/public"
+      NGINX_CONTENT_EXPIRY: "7d"
       NGINX_SSL_CERTIFICATE: "/etc/nginx/ssl/dummy.crt"
       NGINX_SSL_CERTIFICATE_KEY: "/etc/nginx/ssl/dummy.key"
       FAST_CGI_PASS: "php.${DOCKER_ROOT_DOMAIN}"
     volumes:
       - ${PWD}/src/:${DOCKER_WORKING_DIR}:delegated
       - ${PWD}/stack/config/${DOCKER_ENVIRONMENT}/certificate:/etc/nginx/ssl
-      - ${PWD}/stack/config/${DOCKER_ENVIRONMENT}/nginx/templates/app.conf.template:/etc/nginx/templates/app.conf.template
+      - ${PWD}/stack/config/${DOCKER_ENVIRONMENT}/nginx/app.conf.template:/etc/nginx/templates/app.conf.template
+      - ${PWD}/stack/config/${DOCKER_ENVIRONMENT}/nginx/entrypoint.sh:/usr/local/bin/custom-entrypoint.sh:cached
+    entrypoint: ["/usr/local/bin/custom-entrypoint.sh"]
+    command: ["nginx", "-g", "daemon off;"]
     depends_on:
       - php
       - mysql
